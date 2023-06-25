@@ -21,21 +21,21 @@ contract CrowdFundingII {
         require(balanceEther < targetEther, "Target dana telah tercapai");
         require(block.timestamp < deadline, "Waktu habis");
 
-        // contributions[payable(msg.sender)] += msg.value;
-        // contributor.push(msg.sender);
-
         uint contribution = msg.value;
         uint remaining = targetEther - balanceEther;
 
         if (contribution <= remaining) {
             balanceEther += contribution;
+            contributions[payable(msg.sender)] += contribution;
+            contributor.push(msg.sender);
         } else {
             balanceEther += remaining;
             uint excess = contribution - remaining;
             payable(msg.sender).transfer(excess);
+            contributions[payable(msg.sender)] += remaining;
+            contributor.push(msg.sender);
         }
-        contributions[payable(msg.sender)] += contribution;
-        contributor.push(msg.sender);
+        
     }
 
     function refund() public {
@@ -65,4 +65,5 @@ contract CrowdFundingII {
     function tampilkanTimeStamp() public view returns(uint) {
         return block.timestamp;
     }
+
 }
