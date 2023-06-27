@@ -2,68 +2,61 @@
 
 pragma solidity >0.7.0 <=0.9.0;
 
-contract CrowdFundingII {
-    
-    address[] contributor;
-    mapping(address => uint256) contributions;
-    uint targetEther;
-    uint money;
-    uint private balanceEther = address(this).balance;
-    uint private deadline;
+contract EscrowII {
 
-    constructor(address manager, uint _target, uint _deadline) {
-        manager = msg.sender;
-        targetEther = _target;
-        deadline = block.timestamp + _deadline;
+    address manager;
+    address buyer;
+    address seller;
+    bool packageSent;
+    bool packageReceived;
+    bool refundStatement;
+
+    constructor(address _manager, address _buyer, address _seller) {
+        manager = _manager;
+        buyer = _buyer;
+        seller = _seller;
     }
 
-    function contribute() public payable {
-        require(balanceEther < targetEther, "Target dana telah tercapai");
-        require(block.timestamp < deadline, "Waktu habis");
+    function Deposit() public payable {
+        require(msg.sender == buyer, "Buyer only");
+        buyer = payable(msg.sender);
+    }
 
-        uint contribution = msg.value;
-        uint remaining = targetEther - balanceEther;
+    function Send() public returns(bool){
+        require(msg.sender == seller, "Seller only");
+        require(address(this).balance > 0, "No deposited money");
+        packageSent = true;
+        return packageSent;
+    }
 
-        if (contribution <= remaining) {
-            balanceEther += contribution;
-            contributions[payable(msg.sender)] += contribution;
-            contributor.push(msg.sender);
+    function Receive() public returns(bool) {
+        require(msg.sender == buyer, "Buyer only");
+        require(packageSent == true, "Barang belum dikirim");
+        packageReceived = true;
+        if (refundStatement != true) {
+            payable(seller).transfer(address(this).balance);
         } else {
-            balanceEther += remaining;
-            uint excess = contribution - remaining;
-            payable(msg.sender).transfer(excess);
-            contributions[payable(msg.sender)] += remaining;
-            contributor.push(msg.sender);
+            revert("Ada refund request, need to resolve");
         }
-        
+        return packageReceived;
     }
 
-    function refund() public {
-        require(block.timestamp > deadline, "Belum mencapai waktu deadline");
-
-        for(uint i=0; i < contributor.length; i++) {
-            payable(contributor[i]).transfer(contributions[payable(contributor[i])]);
-        }
+    function refundRequest() public returns(bool) {
+        require(msg.sender == buyer, "Buyer only");
+        refundStatement = true;
+        return refundStatement;
     }
 
-    function tampilkanTarget() public view returns(uint) {
-        return targetEther;
+    function Refund() public {
+        require(msg.sender == manager, "Manager only");
+        require(refundStatement == true, "No problem found");
+        payable(buyer).transfer(address(this).balance);
     }
 
-    function sendMoney(address receiver) public {
-        payable (receiver).transfer(address(this).balance);
-    }
-
-    function getContributor() public view returns(address[] memory) {
-        return contributor;
-    }
-
-    function tampilkanDeadline() public view returns(uint) {
-        return deadline;
-    }
-
-    function tampilkanTimeStamp() public view returns(uint) {
-        return block.timestamp;
+    function Resolve() public {
+        require(msg.sender == manager, "Manager only");
+        require(refundStatement == true, "No problem found");
+        payable(seller).transfer(address(this).balance);
     }
 
 }
